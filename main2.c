@@ -16,16 +16,23 @@ int main(int argc , char ** argv){
 
     char requete[128];
     char buf[1024]={0};
-    char rec[128];
-    char ACK[1024]={0};
-    int number=0;
+    char receive[1024];
+    char receive2[1024];
+    char ACK[4]={0,4,0,0};
+    char data[1024]={0};
+    int namefile[15]={0};
+    FILE* fichier=NULL;
+
+    fichier=fopen(namefile,"r");
     int adresse;
     int info;
-    int sd;
+    int nread,Nbcharead ;
     struct addrinfo hints;
     struct addrinfo *res;
     struct addrinfo * otherhints=calloc(1,sizeof(struct addrinfo));
     struct addrinfo *copie =res;
+    struct sockaddr socketReceived;
+    int socketReceiveSize;
     memset(&hints,0,sizeof (hints));
     hints.ai_family=AF_INET;
     hints.ai_protocol=IPPROTO_UDP;
@@ -52,20 +59,51 @@ if(adresse==-1)
     sendto(info,buf,strlen(argv[3])+12,res->ai_flags,res->ai_addr,res->ai_addrlen);
 
     //send(1,buf, strlen(buf),res->ai_flags);
+    //memset(buf,'\0',1024);
+    nread=recvfrom(info,receive,1024,res->ai_flags,&socketReceived,&socketReceiveSize);
 
-    recvfrom(info,ACK,strlen(argv[3])+12,res->ai_flags,res->ai_addr,res->ai_addrlen);
 
-    if(strcmp(ACK,"OK")==0)
-    {
-        printf("Packet du fichier bien envoyé et bien reçu \n");
-    }
-    else
+    if (receive[1]==5)
     {
 
-        printf("Un bloc n'a pas été envoyé");
-        exit(-1);
+    printf("Error code received from the server :\n%s\"",receive+4);
+    exit(EXIT_SUCCESS);
+
+    }
+    if(receive[1]==3)
+    {
+        printf(" I received %d bytes",nread-4);
+        ACK[3]=receive[3];
+        sendto(info,ACK,4,0,&socketReceived,&socketReceiveSize);
+
     }
 
+    Nbcharead = read(1, namefile, 15);
+    namefile[Nbcharead-1]='\0';
+    if(fichier!=NULL)
+    {
+        sendto(info,namefile,strlen(namefile),0,&socketReceived,&socketReceiveSize);
+    while(fread(data,1,1024,fichier)!=NULL)
+    {
+        sendto(info,data,1024,0,&socketReceived,&socketReceiveSize);
+
+        recvfrom(info,ACK,strlen(ACK-1),0,&socketReceived,&socketReceiveSize);
+        printf("ACK :%s\n", ACK);
+
+        if(strcmp(ACK,"OK")==0)
+        {
+            printf("Packet du fichier bien envoyé et bien reçu\n");
+        }
+        else
+        {
+            printf("Un bloc n'a pas été envoyé ");
+            exit(EXIT_FAILURE);
+
+        }
+
+    }
+
+    }
     //sendto(sd,retour,strlen(retour));
 
 
